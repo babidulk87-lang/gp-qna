@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GP QnA - Student App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2d6a4f;
+            --secondary-color: #40916c;
+            --accent-color: #ff9f1c;
+            --bg-color: #f8f9fa;
+            --text-dark: #1b4332;
+            --white: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-dark); }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--white); padding: 20px; text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000;
+            border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;
+        }
+
+        #logoutBtn { position: absolute; right: 15px; top: 22px; background: rgba(255,255,255,0.2); border: 1px solid var(--white); color: var(--white); padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; display: none; }
+
+        .container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
+
+        .screen { display: none; animation: fadeIn 0.5s ease; }
+        .active-screen { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--white); padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h2 { margin-bottom: 20px; font-weight: 600; text-align: center; color: var(--primary-color); }
+
+        input { width: 100%; padding: 14px; margin: 10px 0; border: 1.5px solid #eee; border-radius: 12px; font-size: 14px; }
+        .btn-main { width: 100%; padding: 14px; background: var(--primary-color); color: white; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: 15px; }
+
+        .grid-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .menu-item { background: var(--white); border: 2px solid #f0f0f0; padding: 20px; border-radius: 15px; text-align: center; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .menu-item:hover { border-color: var(--secondary-color); background: #eef9f1; }
+
+        .back-btn { background: none; border: none; color: var(--primary-color); font-weight: 600; cursor: pointer; margin-bottom: 15px; }
+
+        .qna-card { background: var(--white); margin-bottom: 15px; border-radius: 15px; padding: 18px; border-left: 6px solid var(--accent-color); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+        .q-text { font-weight: 600; color: #d62828; margin-bottom: 8px; }
+        .a-text { color: #2d6a4f; background: #f0fff4; padding: 10px; border-radius: 8px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>GP QnA</h1>
+        <button id="logoutBtn">Logout</button>
+    </header>
+
+    <div class="container">
+        <div id="auth-screen" class="screen active-screen">
+            <div class="card">
+                <h2 id="auth-title">Student Login</h2>
+                <div id="signup-fields" style="display: none;">
+                    <input type="text" id="fullName" placeholder="Full Name">
+                </div>
+                <input type="email" id="email" placeholder="Email">
+                <input type="password" id="password" placeholder="Password">
+                <button class="btn-main" id="auth-btn">Login</button>
+                <p style="text-align:center; margin-top:15px; font-size:13px">
+                    <span id="toggle-text">New Student? Create Account</span>
+                </p>
+            </div>
+        </div>
+
+        <div id="class-screen" class="screen">
+            <h2>Select Class</h2>
+            <div class="grid-menu" id="class-list"></div>
+        </div>
+
+        <div id="subject-screen" class="screen">
+            <button class="back-btn" onclick="showScreen('class-screen')">← Back</button>
+            <h2 id="class-title">Subjects</h2>
+            <div class="grid-menu" id="subject-list"></div>
+        </div>
+
+        <div id="lesson-screen" class="screen">
+            <button class="back-btn" onclick="showScreen('subject-screen')">← Back</button>
+            <h2 id="subject-title">Lessons</h2>
+            <div class="grid-menu" id="lesson-list"></div>
+        </div>
+
+        <div id="qna-screen" class="screen">
+            <button class="back-btn" onclick="showScreen('lesson-screen')">← Back</button>
+            <h2 id="lesson-title">Q&A</h2>
+            <div id="qna-list"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC5_FXuoWpeVIPt_wq2AsM8ZUYt6UXxnDg",
+            authDomain: "gp-qna.firebaseapp.com",
+            projectId: "gp-qna",
+            storageBucket: "gp-qna.firebasestorage.app",
+            messagingSenderId: "4216182348",
+            appId: "1:4216182348:web:22b2502b42efeaaff486e9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let isLogin = true;
+        let selectedClass = "", selectedSub = "";
+
+        // Toggle Login/Signup
+        document.getElementById('toggle-text').onclick = () => {
+            isLogin = !isLogin;
+            document.getElementById('signup-fields').style.display = isLogin ? 'none' : 'block';
+            document.getElementById('auth-title').innerText = isLogin ? 'Student Login' : 'Create Account';
+            document.getElementById('auth-btn').innerText = isLogin ? 'Login' : 'Register';
+            document.getElementById('toggle-text').innerText = isLogin ? 'New Student? Create Account' : 'Already have an account? Login';
+        };
+
+        window.showScreen = (id) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+            document.getElementById(id).classList.add('active-screen');
+        };
+
+        // Auth Logic
+        document.getElementById('auth-btn').onclick = async () => {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            try {
+                if(isLogin) {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                } else {
+                    const name = document.getElementById('fullName').value;
+                    const res = await createUserWithEmailAndPassword(auth, email, pass);
+                    await setDoc(doc(db, "users", res.user.uid), { name, email });
+                }
+            } catch (e) { alert(e.message); }
+        };
+
+        document.getElementById('logoutBtn').onclick = () => signOut(auth);
+
+        onAuthStateChanged(auth, (user) => {
+            if(user) {
+                document.getElementById('logoutBtn').style.display = 'block';
+                showScreen('class-screen');
+                loadClasses();
+            } else {
+                document.getElementById('logoutBtn').style.display = 'none';
+                showScreen('auth-screen');
+            }
+        });
+
+        function loadClasses() {
+            const list = document.getElementById('class-list');
+            list.innerHTML = '';
+            for(let i=1; i<=10; i++) {
+                const div = document.createElement('div');
+                div.className = 'menu-item';
+                div.innerText = "Class " + i;
+                div.onclick = () => { selectedClass = "Class " + i; loadSubjects(); };
+                list.appendChild(div);
+            }
+        }
+
+        function loadSubjects() {
+            const subs = ["Assamese", "English", "Mathematics", "Science", "Social Science", "Hindi"];
+            const list = document.getElementById('subject-list');
+            list.innerHTML = '';
+            subs.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'menu-item';
+                div.innerText = s;
+                div.onclick = () => { selectedSub = s; loadLessons(); };
+                list.appendChild(div);
+            });
+            showScreen('subject-screen');
+        }
+
+        async function loadLessons() {
+            showScreen('lesson-screen');
+            const list = document.getElementById('lesson-list');
+            list.innerHTML = 'Loading...';
+            const q = query(collection(db, "qna_data"), where("class", "==", selectedClass), where("subject", "==", selectedSub));
+            const snap = await getDocs(q);
+            let lessons = new Set();
+            snap.forEach(d => lessons.add(d.data().lesson));
+            list.innerHTML = '';
+            lessons.forEach(l => {
+                const div = document.createElement('div');
+                div.className = 'menu-item';
+                div.innerText = l;
+                div.onclick = () => loadQnA(l);
+                list.appendChild(div);
+            });
+        }
+
+        async function loadQnA(lesson) {
+            showScreen('qna-screen');
+            const list = document.getElementById('qna-list');
+            list.innerHTML = 'Loading Questions...';
+            const q = query(collection(db, "qna_data"), where("class", "==", selectedClass), where("subject", "==", selectedSub), where("lesson", "==", lesson));
+            const snap = await getDocs(q);
+            list.innerHTML = '';
+            snap.forEach(doc => {
+                const d = doc.data();
+                list.innerHTML += `<div class="qna-card"><div class="q-text">Q: ${d.question}</div><div class="a-text">Ans: ${d.answer}</div></div>`;
+            });
+        }
+    </script>
+</body>
+</html>
