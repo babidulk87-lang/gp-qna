@@ -3,88 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GP QnA - Student App</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <title>GP QnA - Student Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 15px; }
-        .header { background: linear-gradient(135deg, #2d6a4f, #1b4332); color: white; padding: 25px; border-radius: 0 0 25px 25px; text-align: center; margin: -15px -15px 20px -15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        
-        /* Developer Profile Section */
-        .dev-box { background: white; padding: 20px; border-radius: 20px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e0e0e0; display: none; }
-        .dev-photo { width: 100px; height: 100px; border-radius: 50%; border: 4px solid #2d6a4f; object-fit: cover; box-shadow: 0 4px 8px rgba(0,0,0,0.2); margin-bottom: 10px; }
-        .dev-name { display: block; font-weight: bold; color: #1b4332; font-size: 1.2rem; }
+        :root { --primary-color: #2d6a4f; --secondary-color: #40916c; --bg-color: #f4f7f6; --white: #ffffff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background-color: var(--bg-color); padding-bottom: 30px; }
 
-        /* Question Cards */
-        .q-card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 6px solid #2d6a4f; }
-        .q-meta { font-size: 0.8rem; color: #666; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
-        .q-text { font-weight: bold; color: #2d6a4f; font-size: 1.1rem; margin-bottom: 12px; display: block; }
-        .a-text { color: #444; font-size: 1rem; line-height: 1.6; padding-top: 12px; border-top: 1px solid #eee; display: block; }
-        #loading { text-align: center; color: #2d6a4f; font-weight: bold; margin-top: 30px; }
+        /* Header Area */
+        header { 
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); 
+            color: var(--white); padding: 20px; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;
+            display: flex; align-items: center; gap: 15px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        #displayAdminPhoto { 
+            width: 50px; height: 50px; border-radius: 50%; border: 2px solid white; object-fit: cover; background: #eee;
+        }
+        .header-info h1 { font-size: 18px; margin: 0; }
+        .header-info p { font-size: 11px; opacity: 0.9; }
+
+        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+        
+        /* Filters */
+        .filter-card { background: white; padding: 15px; border-radius: 15px; margin-bottom: 20px; display: flex; gap: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        select { flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid #eee; outline: none; font-size: 13px; background: #fff; cursor: pointer; }
+
+        /* Lesson Accordion Button Style */
+        .lesson-item { margin-bottom: 12px; border-radius: 12px; overflow: hidden; background: white; box-shadow: 0 3px 10px rgba(0,0,0,0.04); }
+        
+        .lesson-btn { 
+            width: 100%; padding: 15px; text-align: left; border: none; background: white; 
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: 0.3s; outline: none;
+        }
+        .lesson-btn:active { background: #f0fdf4; }
+        
+        .lesson-title-area { display: flex; flex-direction: column; gap: 4px; }
+        .badge { font-size: 9px; background: #e8f5e9; color: var(--primary-color); padding: 2px 8px; border-radius: 5px; width: fit-content; font-weight: 600; }
+        .q-text { font-weight: 600; color: #333; font-size: 14px; line-height: 1.4; }
+
+        /* Answer Content (Hidden by default) */
+        .ans-content { 
+            max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: #fcfcfc; border-top: 1px solid #f0f0f0;
+        }
+        .ans-body { padding: 15px; color: #555; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+
+        /* Arrow Icon */
+        .arrow { border: solid #999; border-width: 0 2px 2px 0; display: inline-block; padding: 3px; transform: rotate(45deg); transition: 0.3s; }
+        .active .arrow { transform: rotate(-135deg); }
+        .active .ans-content { max-height: 500px; } /* Expand logic */
+
+        #loading { text-align: center; color: #666; margin-top: 50px; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1 style="margin:0;">GP QnA Portal</h1>
+    <header>
+        <img id="displayAdminPhoto" src="https://via.placeholder.com/150" alt="Admin">
+        <div class="header-info">
+            <h1>GP QnA Learning</h1>
+            <p id="adminStatus">Verified by Teacher</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="filter-card">
+            <select id="filterClass">
+                <option value="">All Classes</option>
+                <option>Class 1</option><option>Class 2</option><option>Class 3</option>
+                <option>Class 4</option><option>Class 5</option><option>Class 6</option>
+                <option>Class 7</option><option>Class 8</option><option>Class 9</option><option>Class 10</option>
+            </select>
+            <select id="filterSubject">
+                <option value="">All Subjects</option>
+                <option>Assamese</option><option>English</option><option>Mathematics</option>
+                <option>Science</option><option>Social Science</option><option>Hindi</option>
+            </select>
+        </div>
+
+        <div id="loading">📚 Loading lessons, please wait...</div>
+        <div id="qna-list"></div>
     </div>
 
-    <div class="dev-box" id="devSection">
-        <img id="dispPhoto" class="dev-photo" src="" alt="Dev">
-        <span id="dispName" class="dev-name"></span>
-    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    <div id="loading">Sawal load ho rahe hain...</div>
-    <div id="questionsList"></div>
-
-    <script>
-        // Aapki Firebase Config
         const firebaseConfig = {
-            apiKey: "AIzaSyAvuC2IFJoBZgfb93Al1d9OAVc7nuGXoTI",
-            authDomain: "gp-chat-2.firebaseapp.com",
-            databaseURL: "https://gp-chat-2-default-rtdb.firebaseio.com",
-            projectId: "gp-chat-2",
-            storageBucket: "gp-chat-2.firebasestorage.app",
-            messagingSenderId: "443746782465",
-            appId: "1:443746782465:web:39458e645904f2b7f3df00"
+            apiKey: "AIzaSyC5_FXuoWpeVIPt_wq2AsM8ZUYt6UXxnDg",
+            authDomain: "gp-qna.firebaseapp.com",
+            projectId: "gp-qna",
+            storageBucket: "gp-qna.firebasestorage.app",
+            messagingSenderId: "4216182348",
+            appId: "1:4216182348:web:22b2502b42efeaaff486e9"
         };
-        
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
 
-        // 1. Developer Profile Fetch (Real-time)
-        database.ref('developer').on('value', (snap) => {
-            const data = snap.val();
-            if(data) {
-                document.getElementById('devSection').style.display = "block";
-                document.getElementById('dispPhoto').src = data.photo;
-                document.getElementById('dispName').innerText = "Developer: " + data.name;
-            }
-        });
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-        // 2. Questions Fetch (Real-time)
-        database.ref('questions').on('value', (snap) => {
-            const list = document.getElementById('questionsList');
+        // Fetch Teacher Photo
+        async function loadProfile() {
+            try {
+                const snap = await getDoc(doc(db, "admin_config", "profile"));
+                if (snap.exists()) document.getElementById('displayAdminPhoto').src = snap.data().photoUrl;
+            } catch (e) { console.log(e); }
+        }
+
+        // Fetch Lessons with Accordion Logic
+        function loadData() {
+            const listDiv = document.getElementById('qna-list');
             const loader = document.getElementById('loading');
-            list.innerHTML = "";
-            loader.style.display = "none";
-            
-            if(!snap.exists()) {
-                list.innerHTML = "<p style='text-align:center;'>Abhi tak koi sawal upload nahi kiya gaya.</p>";
-                return;
-            }
+            const selClass = document.getElementById('filterClass').value;
+            const selSub = document.getElementById('filterSubject').value;
 
-            snap.forEach((child) => {
-                const q = child.val();
-                list.innerHTML = `
-                    <div class="q-card">
-                        <div class="q-meta">${q.class || 'N/A'} | ${q.subject || 'General'}</div>
-                        <span class="q-text">Q: ${q.question}</span>
-                        <span class="a-text">A: ${q.answer}</span>
-                    </div>
-                ` + list.innerHTML; // Naya sawal sabse upar dikhega
+            const q = query(collection(db, "qna_data"), orderBy("updatedAt", "desc"));
+
+            onSnapshot(q, (snap) => {
+                loader.style.display = 'none';
+                listDiv.innerHTML = '';
+                let count = 0;
+
+                snap.forEach(d => {
+                    const item = d.data();
+                    if((!selClass || item.class === selClass) && (!selSub || item.subject === selSub)) {
+                        count++;
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'lesson-item';
+                        itemDiv.innerHTML = `
+                            <button class="lesson-btn">
+                                <div class="lesson-title-area">
+                                    <span class="badge">${item.lesson} • ${item.subject}</span>
+                                    <div class="q-text">${item.question}</div>
+                                </div>
+                                <i class="arrow"></i>
+                            </button>
+                            <div class="ans-content">
+                                <div class="ans-body">${item.answer}</div>
+                            </div>
+                        `;
+
+                        // Accordion Click Event
+                        itemDiv.querySelector('.lesson-btn').onclick = function() {
+                            const parent = this.parentElement;
+                            parent.classList.toggle('active');
+                        };
+
+                        listDiv.appendChild(itemDiv);
+                    }
+                });
+
+                if(count === 0) listDiv.innerHTML = '<p style="text-align:center; color:#999; margin-top:20px;">No lessons found.</p>';
             });
-        });
+        }
+
+        document.getElementById('filterClass').onchange = loadData;
+        document.getElementById('filterSubject').onchange = loadData;
+
+        loadProfile();
+        loadData();
     </script>
 </body>
 </html>
